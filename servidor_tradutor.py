@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from google.genai import types
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -17,6 +18,12 @@ MODELO = "gemini-2.5-flash"
 CLIENT_AI = genai.Client(api_key=API_KEY)
 
 DB_NAME = 'meu_ingles.db'
+
+def limpar_json(texto):
+    """Remove blocos de markdown e espaços extras da resposta da IA."""
+    # Remove as marcações ```json e ``` que a IA às vezes coloca
+    texto_limpo = re.sub(r'```json|```', '', texto).strip()
+    return texto_limpo
 
 # --- 2. GERENCIAMENTO DO BANCO DE DADOS ---
 
@@ -132,22 +139,47 @@ def traduzir_texto():
 
 # Função auxiliar para evitar repetição de código
 def processar_e_salvar(json_ia):
-    resultado = json.loads(json_ia)
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    # Salva Flashcard
-    f = resultado['flashcard_principal']
-    cursor.execute("INSERT INTO flashcards (texto_ingles, texto_pt) VALUES (?, ?)", (f['ingles'], f['portugues']))
-    
-    # Salva Vocabulário
-    for item in resultado.get('palavras_destaque', []):
-        cursor.execute("INSERT OR IGNORE INTO vocabulario (palavra, traducao, contexto) VALUES (?, ?, ?)",
-                       (item['palavra'].lower(), item['traducao'], item['contexto']))
-    
-    conn.commit()
-    conn.close()
-    return jsonify(resultado)
+    try:
+        # 1. Limpa e converte a string para dicionário
+        texto_puro = limpar_json(json_ia)
+        resultado = json.loads(texto_puro)
+        
+        # 2. Se por algum motivo 'resultado' ainda for string, tenta carregar de novo (double-decode)
+        if isinstance(resultado, str):
+            resultado = json.loads(resultado)
+
+        # 3. Validação de segurança: verifica se as chaves existem
+        if 'flashcard_principal' not in resultado:
+            raise KeyError("flashcard_principal ausente")
+        
+        f = resultado['flashcard_principal']
+        # Verifica se 'ingles' e 'portugues' existem, senão usa valores padrão
+        ingles = f.get('ingles', 'N/A')
+        portugues = f.get('portugues', 'N/A')
+
+        # 4. Salva no Banco de Dados
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO flashcards (texto_ingles, texto_pt) VALUES (?, ?)", (ingles, portugues))
+        
+        for item in resultado.get('palavras_destaque', []):
+            p = item.get('palavra', '').lower()
+            t = item.get('traducao', '')
+            c = item.get('contexto', '')
+            if p:
+                cursor.execute("INSERT OR IGNORE INTO vocabulario (palavra, traducao, contexto) VALUES (?, ?, ?)", (p, t, c))
+        
+        conn.commit()
+        conn.close()
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"❌ Erro no Processamento: {e}")
+       
+        return jsonify({
+            "flashcard_principal": {"ingles": "Error processing", "portugues": "Erro ao processar imagem"},
+            "palavras_destaque": []
+        }), 200 
 
 @app.route('/meus-dados', methods=['GET'])
 def listar_tudo():
