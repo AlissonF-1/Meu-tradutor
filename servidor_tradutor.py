@@ -114,14 +114,26 @@ def traduzir_texto():
         print(f"🧠 Memória Texto: ignorando {len(palavras_ignoradas)} palavras.")
 
         prompt = f"""
-        O usuário quer aprender: "{texto_usuario}"
-        TAREFA: Traduza e sugira 2 sinônimos ou termos relacionados.
-        REGRAS: Ignore estas palavras: [{lista_ignoradas_str}].
-        SAÍDA OBRIGATÓRIA (JSON puro):
+        Analise a imagem de texto em inglês fornecida.
+        
+        TAREFA: 
+        1. Traduza o texto principal para o português.
+        2. Identifique 3 palavras-chave interessantes para estudo.
+        
+        REGRAS RÍGIDAS:
+        - Responda APENAS com um objeto JSON puro.
+        - Não use blocos de código Markdown (```json).
+        - Ignore estas palavras que o usuário já conhece: [{lista_ignoradas_str}].
+        
+        ESTRUTURA DA SAÍDA (OBRIGATÓRIA):
         {{
-            "flashcard_principal": {{ "ingles": "{texto_usuario}", "portugues": "tradução" }},
+            "flashcard_principal": {{
+                "ingles": "O texto original ou o termo principal aqui",
+                "portugues": "A tradução aqui"
+            }},
             "palavras_destaque": [
-                {{ "palavra": "...", "traducao": "...", "contexto": "..." }}
+                {{ "palavra": "exemplo1", "traducao": "trad1", "contexto": "frase de exemplo" }},
+                {{ "palavra": "exemplo2", "traducao": "trad2", "contexto": "frase de exemplo" }}
             ]
         }}
         """
