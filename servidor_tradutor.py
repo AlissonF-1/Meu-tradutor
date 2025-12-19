@@ -11,9 +11,10 @@ app = Flask(__name__)
 CORS(app)
 
 # --- 1. CONFIGURAÇÃO DA IA ---
-# Chave recuperada dos seus logs anteriores
-CLIENT_AI = genai.Client(api_key="AIzaSyBE_E3BhYoqg0ylQkR1vfdHRTeINX5XlFE")
-MODELO = "gemini-2.5-flash" # Versão que você confirmou estar funcionando
+# Chave e Modelo
+API_KEY = os.environ.get("GOOGLE_API_KEY") 
+MODELO = "gemini-2.5-flash" 
+CLIENT_AI = genai.Client(api_key=API_KEY)
 
 DB_NAME = 'meu_ingles.db'
 
@@ -92,7 +93,7 @@ def traduzir_imagem():
         print(f"❌ Erro Imagem: {e}")
         return jsonify({"erro": str(e)}), 500
 
-# ROTA B: Tradução por Texto (Nova!)
+# ROTA B: Tradução por Texto
 @app.route('/traduzir-texto', methods=['POST'])
 def traduzir_texto():
     try:
@@ -162,18 +163,15 @@ def deletar_palavra(palavra):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        # Usamos lower() para garantir que encontre a palavra correta no banco
         cursor.execute("DELETE FROM vocabulario WHERE palavra = ?", (palavra.lower(),))
         conn.commit()
         conn.close()
-        print(f"🗑️ Palavra '{palavra}' removida com sucesso.")
         return jsonify({"status": "sucesso", "mensagem": f"'{palavra}' removida."})
     except Exception as e:
-        print(f"❌ Erro ao deletar: {e}")
         return jsonify({"erro": str(e)}), 500
 
+# BLOCO PRINCIPAL CORRIGIDO
 if __name__ == '__main__':
-    if __name__ == '__main__':
-    # O Render usa uma variável de ambiente chamada PORT
+    
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
